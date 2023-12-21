@@ -80,7 +80,7 @@
     <label for="password">密码 (必填):&nbsp;</label>
     <input type="text" id="password" name="password" required>
     &nbsp;&nbsp;&nbsp;&nbsp;
-    <label for="key" class="info">加密 Key(自动生成):&nbsp;</label>
+    <label for="key" class="info">自动生成的加密 Key(Base64):&nbsp;</label>
     <input type="text" id="key" name="key" readonly>
   </div>
   <div id="textareasContainer">
@@ -90,7 +90,7 @@
       <textarea id="plaintext" name="plaintext"></textarea>
     </div>
     <div>
-      <label for="ciphertext">密文:</label>
+      <label for="ciphertext">密文(Base64):</label>
       <br>
       <textarea id="ciphertext" name="ciphertext"></textarea>
     </div>
@@ -107,18 +107,21 @@
     <ol>
       <li>加密算法为 AES-256-GCM 算法</li>
       <li>为了保持简单, 将 IV、Salt、密文拼接后进行了 Base64 编码, 以便于保存和传输</li>
+      <li>是先用 ArrayBuffer 拼接再转化的 Base64</li>
       <li>加密流程:
         <ul>
-          <li>Password -> 加密 Key + Slat</li>
-          <li>原文 + 加密 Key -> 加密串</li>
-          <li>IV + Salt + 密文 拼接后进行 Base64 编码 -> 密文</li>
+          <li>随机生成 Slat</li>
+          <li>Password + Slat -> 加密 Key</li>
+          <li>随机生成 IV</li>
+          <li>原文 + IV + 加密 Key -> 加密串</li>
+          <li>IV + Salt + 加密串 拼接后进行 Base64 编码 -> 密文</li>
         </ul>
       </li>
       <li>解密流程:
         <ul>
           <li>密文 -> IV + Salt + 加密串</li>
           <li>Password + Salt -> 加密 Key</li>
-          <li>加密 Key + 加密串 -> 原文</li>
+          <li>IV + 加密串 + 加密 Key -> 原文</li>
         </ul>
       </li>
     </ol>
@@ -179,9 +182,9 @@
         const cipherText = encryptedBuffer.slice(28);
 
         saltIvContainer.innerHTML = `
-        <b>IV</b><br>${arrayBufferToBase64(iv)}<br>
-        <b>Salt</b><br>${arrayBufferToBase64(salt)}<br>
-        <b>密文</b><br>${arrayBufferToBase64(cipherText)}
+        <b>IV(Base64)</b><br>${arrayBufferToBase64(iv)}<br>
+        <b>Salt(Base64)</b><br>${arrayBufferToBase64(salt)}<br>
+        <b>密文(Base64)</b><br>${arrayBufferToBase64(cipherText)}
         `;
         clearError();
       } catch (error) {
