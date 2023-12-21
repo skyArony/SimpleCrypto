@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>简单加密</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    #passwordContainer {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #textareasContainer {
+      display: flex;
+      justify-content: center;
+    }
+
+    textarea {
+      width: 300px;
+      height: 200px;
+      margin: 0 10px;
+    }
+
+    button {
+      margin: 10px;
+    }
+
+    #saltIvContainer {
+      margin-top: 20px;
+    }
+
+    #error {
+      color: red;
+    }
+
+    #tips {
+      margin: 50px 80px 0 80px;
+      text-align: left;
+    }
+
+    .info {
+      font-size: 14px;
+      color: grey;
+    }
+
+    #password {
+      width: 300px;
+    }
+
+    #key {
+      width: 500px;
+    }
+
+    #saltIvContainer {
+      margin-left: 80px;
+      margin-right: 80px;
+      word-wrap: break-word;
+      word-break: break-all;
+    }
+
+    #saltIv {
+      text-align: left;
+      text-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>简单加密</h1>
+  <div id="passwordContainer">
+    <label for="password">密码 (必填):&nbsp;</label>
+    <input type="text" id="password" name="password" required>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    <label for="key" class="info">加密 Key(自动生成):&nbsp;</label>
+    <input type="text" id="key" name="key" readonly>
+  </div>
+  <div id="textareasContainer">
+    <div>
+      <label for="plaintext">原文:</label>
+      <br>
+      <textarea id="plaintext" name="plaintext"></textarea>
+    </div>
+    <div>
+      <label for="ciphertext">密文:</label>
+      <br>
+      <textarea id="ciphertext" name="ciphertext"></textarea>
+    </div>
+  </div>
+  <br>
+  <button type="button" id="encryptButton">加密</button>
+  <button type="button" id="decryptButton">解密</button>
+  <div id="saltIvContainer">
+    <p id="saltIv"></p>
+    <p id="error"></p>
+  </div>
+  <div id="tips">
+    <h3>Tips:</h3>
+    <ol>
+      <li>加密算法为 AES-256-GCM 算法</li>
+      <li>为了保持简单, 将 IV、Salt、密文拼接后进行了 Base64 编码, 以便于保存和传输</li>
+      <li>加密流程:
+        <ul>
+          <li>Password -> 加密 Key + Slat</li>
+          <li>原文 + 加密 Key -> 加密串</li>
+          <li>IV + Salt + 密文 拼接后进行 Base64 编码 -> 密文</li>
+        </ul>
+      </li>
+      <li>解密流程:
+        <ul>
+          <li>密文 -> IV + Salt + 加密串</li>
+          <li>Password + Salt -> 加密 Key</li>
+          <li>加密 Key + 加密串 -> 原文</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+  <script src="./crypto.js"></script>
+  <script>
+    const passwordInput = document.getElementById("password");
+    const keyInput = document.getElementById("key");
+    const plaintextInput = document.getElementById("plaintext");
+    const ciphertextInput = document.getElementById("ciphertext");
+    const encryptButton = document.getElementById("encryptButton");
+    const decryptButton = document.getElementById("decryptButton");
+    const saltIvContainer = document.getElementById("saltIv");
+    const errorContainer = document.getElementById("error");
+
+    function displayError(message) {
+      errorContainer.textContent = message;
+    }
+
+    function clearError() {
+      errorContainer.textContent = "";
+    }
+
+    encryptButton.addEventListener("click", async () => {
+      const password = passwordInput.value;
+      const plaintext = plaintextInput.value;
+
+      if (!password) {
+        alert("请填入密码！");
+        return;
+      }
+
+      const salt = generateSalt();
+      const key = await deriveKeyFromPassword(password, salt);
+      const ciphertext = await encryptMessage(key, salt, plaintext);
+
+      ciphertextInput.value = ciphertext;
+      keyInput.value = await exportKey(key);
+      clearError();
+    });
+
+    decryptButton.addEventListener("click", async () => {
+      const password = passwordInput.value;
+      const ciphertext = ciphertextInput.value;
+
+      if (!password) {
+        alert("请填入密码！");
+        return;
+      }
+
+      try {
+        const plaintext = await decryptMessage(password, ciphertext);
+        plaintextInput.value = plaintext;
+
+        const encryptedBuffer = base64ToArrayBuffer(ciphertext);
+        const iv = encryptedBuffer.slice(0, 12);
+        const salt = encryptedBuffer.slice(12, 28);
+        const cipherText = encryptedBuffer.slice(28);
+
+        saltIvContainer.innerHTML = `
+        <b>IV</b><br>${arrayBufferToBase64(iv)}<br>
+        <b>Salt</b><br>${arrayBufferToBase64(salt)}<br>
+        <b>密文</b><br>${arrayBufferToBase64(cipherText)}
+        `;
+        clearError();
+      } catch (error) {
+        displayError("错误: 不正确的密文或密码！");
+      }
+    });
+  </script>
+</body>
+</html>
